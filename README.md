@@ -1,0 +1,2 @@
+# RedmineNotificationDiscord
+Redmineの情報をDiscordに通知するボット
