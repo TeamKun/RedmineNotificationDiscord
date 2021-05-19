@@ -9,6 +9,7 @@ config = configparser.ConfigParser()
 config.read('config.ini', 'UTF-8')
 discord_token = os.environ.get('DISCORD_TOKEN')
 redmine_token = os.environ.get('REDMINE_TOKEN')
+interval = config.getint('discord', 'interval_minutes')
 tickets_url = config.get('redmine', 'tickets_url')  # チケットの一覧URL
 ticket_url = config.get('redmine', 'ticket_url')  # チケットの詳細URL
 not_ordered_channel_id = config.getint('discord', 'not_ordered_channel_id')
@@ -32,7 +33,7 @@ class BotClient(discord.Client):
         BotClient.check_task.start(BotClient)
 
     # 1分ごとに処理実行
-    @tasks.loop(minutes=1)
+    @tasks.loop(minutes=interval)
     async def check_task(self):
         # データを取得する処理
         not_ordered_json = await self.get_json(self, query_ids.get('not_ordered'))

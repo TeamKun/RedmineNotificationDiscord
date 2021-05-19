@@ -10,6 +10,7 @@ REDMINE_TOKEN　= Redmineのトークン
 not_ordered_channel_id = 未受注通知チャンネルID\
 review_channel_id = レビュー待ち通知チャンネルID\
 final_review_channel_id = 最終レビュー待ち通知チャンネルID\
+interval_minutes = 実行間隔(分単位)
 \
 [redmine]\
 tickets_url = プロジェクトのチケット一覧ページ.json?\
