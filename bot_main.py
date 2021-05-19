@@ -29,11 +29,11 @@ class BotClient(discord.Client):
             'review': BotClient.get_channel(self, review_channel_id),
             'final': BotClient.get_channel(self, final_review__channel_id)
         }
-        BotClient.check_tickets.start(BotClient)
+        BotClient.check_task.start(BotClient)
 
     # 1分ごとに処理実行
     @tasks.loop(minutes=1)
-    async def check_tickets(self):
+    async def check_task(self):
         # データを取得する処理
         not_ordered_json = await self.get_json(self, query_ids.get('not_ordered'))
         review_json = await self.get_json(self, query_ids.get('review'))
@@ -62,14 +62,16 @@ class BotClient(discord.Client):
         for ticket in ticket_json['issues']:
             tickets.append({
                 'id': ticket['id'],
+                'priority': ticket['priority']['name'],
                 'category': ticket['project']['name'],
-                'subject': '#' + str(ticket['id']) + '  ' + ticket['subject']
+                'subject': ticket['subject']
             })
         return tickets
 
     # 各チャンネルに投稿
     async def send_message(self, ticket, status):
         await BotClient.channels[status].send('No：' + str(ticket['id']) + '\n' +
+                                              '優先度：' + ticket['priority'] + '\n' +
                                               'カテゴリ：' + ticket['category'] + '\n' +
                                               '題名：' + ticket['subject'] + '\n' +
                                               ticket_url + str(ticket['id']))
@@ -80,29 +82,40 @@ class BotClient(discord.Client):
     # 含まれていない場合はチケット情報を送信する
     async def check_ticket(self, tickets, status):
         messages = await BotClient.channels[status].history().flatten()  # 履歴を全取得してリスト化
-        print(status + ' : Flatten')
+        unsent_tickets = []
+        # チケットとDiscordメッセージの照合をする
         for ticket in tickets:
             ticket_no = 'No：' + str(ticket['id']) + '\n'
             exist = False
             for message in messages:
-                print(ticket_no not in message.content)
-                print(ticket_no)
-                print(message.content)
                 if ticket_no not in message.content:
                     continue
                 exist = True
                 subject = '題名：' + ticket['subject'] + '\n'
-                if subject not in message.content:  # タイトルが変更されているか判定、含まれている場合は
-                    message.edit(content='No：' + str(ticket['id']) + '\n' +
-                                         'カテゴリ：' + ticket['category'] + '\n' +
-                                         '題名：' + ticket['subject'] + '\n' +
-                                         ticket_url + str(ticket['id']))
-                if exist:
-                    message.delete()
+                # タイトルが変更されているか判定、含まれていない場合は変更
+                if subject not in message.content:
+                    await message.edit(content='No：' + str(ticket['id']) + '\n' +
+                                               '優先度：' + ticket['priority'] + '\n' +
+                                               'カテゴリ：' + ticket['category'] + '\n' +
+                                               '題名：' + ticket['subject'] + '\n' +
+                                               ticket_url + str(ticket['id']))
+                break
+            # 未送信のチケットを配列に保存
+            if not exist:
+                unsent_tickets.append(ticket)
+        # ステータスが変更されたチケットを削除する
+        for message in messages:
+            exist = False
+            for ticket in tickets:
+                ticket_no = 'No：' + str(ticket['id']) + '\n'
+                if ticket_no in message.content:
+                    exist = True
                     break
-            print(ticket_no + ':' + str(exist))
-            if exist:
-                await self.send_message(self, ticket, status)
+            if not exist:
+                await message.delete()
+        # 未送信のチケットを送信
+        for unsent in unsent_tickets:
+            await self.send_message(self, unsent, status)
 
 
 client = BotClient()
